@@ -231,6 +231,16 @@ require_once "task_functions.php";
             font-size: 0.85rem;
             color: var(--muted);
         }
+
+        .due-date-overdue {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .due-date-soon {
+            color: var(--warning);
+            font-weight: 600;
+        }
         
         /* Modal */
         .modal-title {
@@ -406,68 +416,80 @@ require_once "task_functions.php";
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php $no = 1; while ($row = $result->fetch_assoc()) { ?>
-                                        <tr class="<?= $row['status'] == 1 ? 'task-completed' : '' ?>">
-                                            <td><?= $no++; ?></td>
-                                            <td><strong><?= htmlspecialchars($row['task']); ?></strong></td>
-                                            <td><?= htmlspecialchars($row['description']); ?></td>
-                                            <td>
-                                                <?php 
-                                                    if ($row['priority'] == '1') {
-                                                        echo '<span class="priority-high"><i class="bi bi-chevron-double-up me-1"></i>Tinggi</span>';
-                                                    } elseif ($row['priority'] == '2') {
-                                                        echo '<span class="priority-medium"><i class="bi bi-chevron-up me-1"></i>Sedang</span>';
-                                                    } else {
-                                                        echo '<span class="priority-low"><i class="bi bi-chevron-down me-1"></i>Rendah</span>';
-                                                    }
-                                                ?>
-                                            </td>
-                                            <td>
-                                                <span class="due-date">
-                                                    <i class="bi bi-calendar-event me-1"></i>
-                                                    <?= date('d M Y', strtotime($row['due_date'])); ?>
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <?= ($row['status'] == 1) ? 
-                                                    '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Selesai</span>' : 
-                                                    '<span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Belum</span>'; ?>
-                                            </td>
-                                            <td class="action-buttons">
-                                                <div class="d-flex gap-1 flex-nowrap">
-                                                    <?php if ($row['status'] == 0) { ?>
-                                                        <a href="?complete=<?= $row['id'] ?>" class="btn btn-success btn-sm p-1" 
-                                                        title="Tandai Selesai"
-                                                        onclick="return confirm('Tandai task ini sebagai selesai?');">
-                                                            <i class="bi bi-check-lg fs-6"></i>
+                                    <?php 
+                                        $no = 1; 
+                                        $today = time(); // Get current timestamp for comparison
+                                        while ($row = $result->fetch_assoc()) { 
+                                            $due_date = strtotime($row['due_date']);
+                                            $is_overdue = ($due_date < $today && $row['status'] == 0);
+                                            $is_due_soon = (($due_date - $today) <= (2 * 24 * 60 * 60) && $due_date >= $today && $row['status'] == 0);
+                                        ?>
+                                            <tr class="<?= $row['status'] == 1 ? 'task-completed' : '' ?>">
+                                                <td><?= $no++; ?></td>
+                                                <td><strong><?= htmlspecialchars($row['task']); ?></strong></td>
+                                                <td><?= htmlspecialchars($row['description']); ?></td>
+                                                <td>
+                                                    <?php 
+                                                        if ($row['priority'] == '1') {
+                                                            echo '<span class="priority-high"><i class="bi bi-chevron-double-up me-1"></i>Tinggi</span>';
+                                                        } elseif ($row['priority'] == '2') {
+                                                            echo '<span class="priority-medium"><i class="bi bi-chevron-up me-1"></i>Sedang</span>';
+                                                        } else {
+                                                            echo '<span class="priority-low"><i class="bi bi-chevron-down me-1"></i>Rendah</span>';
+                                                        }
+                                                    ?>
+                                                </td>
+                                                <td>
+                                                    <span class="due-date <?= $is_overdue ? 'due-date-overdue' : ($is_due_soon ? 'due-date-soon' : '') ?>">
+                                                        <i class="bi bi-calendar-event me-1"></i>
+                                                        <?= date('d M Y', $due_date); ?>
+                                                        <?php if ($is_overdue): ?>
+                                                            <i class="bi bi-exclamation-triangle-fill ms-1 text-danger" title="Deadline sudah terlewat!"></i>
+                                                        <?php elseif ($is_due_soon): ?>
+                                                            <i class="bi bi-exclamation-circle-fill ms-1 text-warning" title="Deadline mendekati!"></i>
+                                                        <?php endif; ?>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <?= ($row['status'] == 1) ? 
+                                                        '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Selesai</span>' : 
+                                                        '<span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Belum</span>'; ?>
+                                                </td>
+                                                <td class="action-buttons">
+                                                    <div class="d-flex gap-1 flex-nowrap">
+                                                        <?php if ($row['status'] == 0) { ?>
+                                                            <a href="?complete=<?= $row['id'] ?>" class="btn btn-success btn-sm p-1" 
+                                                            title="Tandai Selesai"
+                                                            onclick="return confirm('Tandai task ini sebagai selesai?');">
+                                                                <i class="bi bi-check-lg fs-6"></i>
+                                                            </a>
+                                                        <?php } else { ?>
+                                                            <a href="?undo=<?= $row['id'] ?>" class="btn btn-warning btn-sm p-1"
+                                                            title="Batalkan Status"
+                                                            onclick="return confirm('Batalkan status selesai untuk task ini?');">
+                                                                <i class="bi bi-arrow-counterclockwise fs-6"></i>
+                                                            </a>
+                                                        <?php } ?>
+                                                        
+                                                        <a href="#" class="btn btn-primary btn-sm p-1 edit-task-btn" 
+                                                        title="Edit Task"
+                                                        data-id="<?= $row['id']; ?>" 
+                                                        data-task="<?= htmlspecialchars($row['task']); ?>" 
+                                                        data-description="<?= htmlspecialchars($row['description']); ?>" 
+                                                        data-priority="<?= $row['priority']; ?>" 
+                                                        data-date="<?= $row['due_date']; ?>">
+                                                            <i class="bi bi-pencil fs-6"></i>
                                                         </a>
-                                                    <?php } else { ?>
-                                                        <a href="?undo=<?= $row['id'] ?>" class="btn btn-warning btn-sm p-1"
-                                                        title="Batalkan Status"
-                                                        onclick="return confirm('Batalkan status selesai untuk task ini?');">
-                                                            <i class="bi bi-arrow-counterclockwise fs-6"></i>
+                                                        
+                                                        <a href="?delete=<?= $row['id'] ?>" class="btn btn-danger btn-sm p-1" 
+                                                        title="Hapus Task"
+                                                        onclick="return confirm('Hapus task ini secara permanen?');">
+                                                            <i class="bi bi-trash fs-6"></i>
                                                         </a>
-                                                    <?php } ?>
-                                                    
-                                                    <a href="#" class="btn btn-primary btn-sm p-1 edit-task-btn" 
-                                                    title="Edit Task"
-                                                    data-id="<?= $row['id']; ?>" 
-                                                    data-task="<?= htmlspecialchars($row['task']); ?>" 
-                                                    data-description="<?= htmlspecialchars($row['description']); ?>" 
-                                                    data-priority="<?= $row['priority']; ?>" 
-                                                    data-date="<?= $row['due_date']; ?>">
-                                                        <i class="bi bi-pencil fs-6"></i>
-                                                    </a>
-                                                    
-                                                    <a href="?delete=<?= $row['id'] ?>" class="btn btn-danger btn-sm p-1" 
-                                                    title="Hapus Task"
-                                                    onclick="return confirm('Hapus task ini secara permanen?');">
-                                                        <i class="bi bi-trash fs-6"></i>
-                                                    </a>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    <?php } ?>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <?php } ?>
                                 </tbody>
                             </table>
                         </div>
